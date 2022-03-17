@@ -23,7 +23,7 @@ def print_log(list_ip):
         if ip != ip_new:
             print(f'[ERROR] {service} IP mismatch: {ip} {ip_new}')
             list_ip[service] = ip_new
-            print(list_ip)
+            # print(list_ip)
         print(f'{service} - {ip_new}')
     time.sleep(1)
 
