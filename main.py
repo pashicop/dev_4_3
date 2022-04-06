@@ -46,16 +46,15 @@ def connect_db():
     connection = None
     with open("credentials.json", encoding="UTF-8") as f:
         cred = json.load(f)
-    test_db = "test"
     try:
         connection = mysql.connector.connect(
             host="localhost",
             user=cred["user"],
             password=cred["password"],
-            database="test"
+            database=cred["database"]
         )
         # print(connection)
-        print(f'БД {test_db} подключена!')
+        print(f'БД {cred["database"]} подключена!')
     except mysql.connector.Error as err:
         print(err)
     # time.sleep(120)
@@ -97,62 +96,39 @@ def save_init_ip(serv_ip: list, con_db):
         yaml.dump(list_out, ym, indent=2, explicit_start=True, explicit_end=True)
         # yaml.dump(str(datetime.now()), ym, explicit_start=True, explicit_end=True)
     try:
-        # known_dns = []
-        db_query_select = """
-            SELECT 
-                ipt.id, 
-                dns.dns,
-                ipt.cur_ip_id, 
-                ip1.ip AS current_ip, 
-                ipt.old_ip_id, 
-                ip2.ip AS old_ip 
-            FROM ip_track ipt 
-            LEFT JOIN dns
-                ON dns.id = ipt.dns_id
-            LEFT JOIN ip ip1
-                ON ip1.id = ipt.cur_ip_id 
-            LEFT JOIN ip ip2
-                ON ip2.id = ipt.old_ip_id
-            """
-        with con_db.cursor() as c_select:
-            c_select.execute(db_query_select)
-            result = c_select.fetchall()
-            for row in result:
-                print(row)
-                # if row[1]:
-                #     known_dns.append(row[1])
+        print_result(con_db)
         for service in serv_ip:
             for service_name, service_ip in service.items():
                 with con_db.cursor() as c_select_dns_id:
-                    db_query_select_dns_id = "SELECT id FROM test.dns WHERE dns = '" + service_name + "'"
+                    db_query_select_dns_id = "SELECT id FROM dns WHERE dns = '" + service_name + "'"
                     c_select_dns_id.execute(db_query_select_dns_id)
-                    result = c_select_dns_id.fetchone()
-                    if result is None:
-                        print("Не нашёл в базе dns")
+                    result_select_dns = c_select_dns_id.fetchone()
+                    if result_select_dns is None:
+                        # print("Не нашёл в базе dns")
                         add_dns(service_name, con_db)
                         c_select_dns_id.execute(db_query_select_dns_id)
-                        result = c_select_dns_id.fetchone()
-                    dns_id = "'" + str(result[0]) + "'"
+                        result_select_dns = c_select_dns_id.fetchone()
+                    dns_id = "'" + str(result_select_dns[0]) + "'"
                     # print(dns_id)
                 with con_db.cursor() as c_select_ip_id:
-                    db_query_select_ip_id = "SELECT id FROM test.ip WHERE ip = '" + service_ip + "'"
+                    db_query_select_ip_id = "SELECT id FROM ip WHERE ip = '" + service_ip + "'"
                     c_select_ip_id.execute(db_query_select_ip_id)
-                    result = c_select_ip_id.fetchone()
-                    if result is None:
-                        print("Не нашёл в базе ip")
+                    result_select_ip = c_select_ip_id.fetchone()
+                    if result_select_ip is None:
+                        # print("Не нашёл в базе ip")
                         add_ip(service_ip, con_db)
                         c_select_ip_id.execute(db_query_select_ip_id)
-                        result = c_select_ip_id.fetchone()
-                    ip_id = "'" + str(result[0]) + "'"
+                        result_select_ip = c_select_ip_id.fetchone()
+                    ip_id = "'" + str(result_select_ip[0]) + "'"
                     # print(ip_id)
                 with con_db.cursor() as c_select_track:
                     db_query_select_track = "SELECT ipt.id FROM ip_track ipt LEFT JOIN dns ON ipt.dns_id = dns.id " \
                                             "WHERE dns = '" + service_name + "'"
                     # print(db_query_select_track)
                     c_select_track.execute(db_query_select_track)
-                    result = c_select_track.fetchone()
-                    if result:
-                        track_id = "'" + str(result[0]) + "'"
+                    result_select_id_ip_track = c_select_track.fetchone()
+                    if result_select_id_ip_track:
+                        track_id = "'" + str(result_select_id_ip_track[0]) + "'"
                         # print(track_id)
                         with con_db.cursor() as c_update_track:
                             db_query_update_track = "UPDATE ip_track SET cur_ip_id = " + ip_id + ", old_ip_id = " \
@@ -160,18 +136,18 @@ def save_init_ip(serv_ip: list, con_db):
                             # print(db_query_update_track)
                             c_update_track.execute(db_query_update_track)
                             con_db.commit()
-                            print(f'Обновил {track_id} {dns_id} {ip_id} {ip_id}')
+                            # print(f'Обновил {track_id} {dns_id} {ip_id} {ip_id}')
                     else:
-                        print("Нет в Списке!")
-                        print("Добавляю!")
+                        # print("Нет в Списке!")
+                        # print("Добавляю!")
                         with con_db.cursor() as c_insert_new_track:
                             db_query_insert_new_track = "INSERT INTO ip_track (dns_id, cur_ip_id, old_ip_id) VALUES (" \
                                                         + dns_id + ", " + ip_id + ", " + ip_id + ")"
                             # print(db_query_insert_new_track)
                             c_insert_new_track.execute(db_query_insert_new_track)
                             con_db.commit()
-                            print(f'Добавил {dns_id} {ip_id} {ip_id}')
-                print()
+                            # print(f'Добавил {dns_id} {ip_id} {ip_id}')
+                # print()
     except mysql.connector.Error as err:
         print(err)
     # time.sleep(100)
@@ -226,7 +202,7 @@ def save_change_ip(serv, ip, con_db):
         result = c_select.fetchone()
         # print(result)
     with con_db.cursor() as c_select_id_from_ip:
-        db_query_select_id_from_ip = "SELECT id FROM test.ip WHERE ip = '" + ip + "'"
+        db_query_select_id_from_ip = "SELECT id FROM ip WHERE ip = '" + ip + "'"
         # print(db_query_select_id_from_ip)
         c_select_id_from_ip.execute(db_query_select_id_from_ip)
         result_ip_from_id = c_select_id_from_ip.fetchone()
@@ -255,7 +231,7 @@ def ping_ok(s_host):
     return True
 
 
-def check_ip(l_ip, file):
+def check_ip(l_ip, file, con_db):
     ip_status = {}
     dict_out = {}
     for ip in l_ip:
@@ -265,10 +241,19 @@ def check_ip(l_ip, file):
         else:
             ip_status[ip] = "ALARM!"
             print(f'{ip} - {ip_status[ip]}')
+        write_to_db(ip, ip_status[ip], con_db)
     dict_out["date"] = str(datetime.now())
     dict_out.update(ip_status)
     write_to_file(dict_out, file)
     return
+
+
+def write_to_db(change_ip, status, con_db):
+    with con_db.cursor() as c_update:
+        db_query_update = "UPDATE ip SET status = '" + status + "', date = NOW() WHERE ( ip = '" + change_ip + "')"
+        c_update.execute(db_query_update)
+        print(db_query_update)
+        con_db.commit()
 
 
 def write_to_file(dict_in, file_out):
@@ -331,6 +316,30 @@ def get_ip(con_db):
             return list_ip_from_db
 
 
+def print_result(con_db):
+    db_query_select = """
+                SELECT 
+                    ipt.id, 
+                    dns.dns,
+                    ipt.cur_ip_id, 
+                    ip1.ip AS current_ip, 
+                    ipt.old_ip_id, 
+                    ip2.ip AS old_ip 
+                FROM ip_track ipt 
+                LEFT JOIN dns
+                    ON dns.id = ipt.dns_id
+                LEFT JOIN ip ip1
+                    ON ip1.id = ipt.cur_ip_id 
+                LEFT JOIN ip ip2
+                    ON ip2.id = ipt.old_ip_id
+                """
+    with con_db.cursor() as c_select:
+        c_select.execute(db_query_select)
+        result_select = c_select.fetchall()
+        for row in result_select:
+            print(row)
+
+
 if __name__ == '__main__':
     with open("input/services") as serv_files:
         services = serv_files.read().splitlines()
@@ -344,12 +353,14 @@ if __name__ == '__main__':
         add_ip_row(list_input_ip, conn)
         add_dns_row(services, conn)
         save_init_ip(list_serv_ip, conn)
-        ip_from_db = get_ip(conn)
         while True:
             try:
+                ip_from_db = get_ip(conn)
                 print_log(list_serv_ip, conn)
-                check_ip(list_input_ip, "output/ip.yaml")
-                check_ip(ip_from_db, "output/ip_from_db.yaml")
+                check_ip(list_input_ip, "output/ip.yaml", conn)
+                check_ip(ip_from_db, "output/ip_from_db.yaml", conn)
+                print_result(conn)
             except Exception as e:
                 print(e)
                 close_db(conn)
+                break
