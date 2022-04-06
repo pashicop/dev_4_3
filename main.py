@@ -44,7 +44,7 @@ create_db = """
 
 def connect_db():
     connection = None
-    with open("credentials.json", encoding="UTF-8") as f:
+    with open("input/credentials.json", encoding="UTF-8") as f:
         cred = json.load(f)
     try:
         connection = mysql.connector.connect(
